@@ -49,7 +49,7 @@ var Obstacle = (function(){
 				y: y,
 				sides: 4,
 				radius: road.getWidth()/20,
-				fill: 'red',
+				fill: 'black',
 				stroke: 'black',
 				strokeWidth: 5
 			});
@@ -78,32 +78,87 @@ var Obstacle = (function(){
 }());
 
 var Car = (function(){
-	function constructor(x, y){
-		Kinectible.call(this, x, y);
+	function constructor(road){
+		this.x = 0;
+		this.y = 0;
+		Kinectible.call(this, this.x, this.y);
+	
+		this.drawObject = function(){
+			var self = this;
+			return new Kinetic.Wedge({
+				x: this.x,
+				y: this.y,
+				radius: road.getWidth() / 12,
+				angleDeg: 60,
+				fill: self.fill,
+				stroke: 'black',
+				strokeWidth: 5,
+				rotationDeg: 60
+			});
+		}
+
+		this.animate = function(){
+
+		}
 	}
+
 	constructor.prototype = new Kinectible();
 	return constructor;
 }());
 
 var BlackCar = (function(){
-	function constructor(x, y){
-		Car.call(this, x, y);
+	function constructor(road){
+		Car.call(this, road);
+		var fill = 'black';
 	}
 	constructor.prototype = new Car();
 	return constructor;
 }());
 
 var WhiteCar = (function(){
-	function constructor(x, y){
-		Car.call(this, x, y);
+	function constructor(road){
+		Car.call(this, road);
+		this.x = Math.random() * road.getWidth() + road.getX();
+		this.y = 0;
+		this.direction = this.x < road.getWidth() / 2 + road.getX();
+		this.fill = 'white';
+
+		this.animate = function(layer, speed, red){
+			var self = this;
+			var anim = new Kinetic.Animation(function(frame){
+				obj = self.getObject();
+				obj.setY(frame.time * speed * 0.1);
+				if(obj.getY() < road.getHeight() - 150){
+					if(self.direction){
+						obj.setX(obj.getX() + frame.time * (speed * 0.001));
+					}else{
+						obj.setX(obj.getX() - frame.time * (speed * 0.001));
+					}
+				}
+				if(obj.getY() > road.getHeight() - 100){
+					if(obj.getX() > red.getX() && obj.getX() < red.getX() + 40){
+						$(document).trigger('crash');
+					}
+				}
+				if(obj.getX() > road.getWidth() + road.getX() || obj.getX() < road.getX()){
+					self.direction = !self.direction;
+				}
+				if(obj.getY() > road.getHeight()){
+					anim.stop();
+					obj.destroy();
+				}
+			}, layer);
+			anim.start();	
+		}
 	}
 	constructor.prototype = new Car();
 	return constructor;
 }());
 
 var YellowCar = (function(){
-	function constructor(x, y){
-		Car.call(this, x, y);
+	function constructor(road){
+		Car.call(this, road);
+		var fill = 'yellow';
 	}
 	constructor.prototype = new Car();
 	return constructor;
@@ -247,13 +302,23 @@ function start(stage, layer, red, road){
 
 	var live = setInterval(function(){
 		totalPoints++;
+
 		if(totalPoints % 9 == 0){
-			Red.SPEED += 0.1;
+			Red.SPEED += 0.03;
 		}
-		var obstacle = new Obstacle(road);
-		obstacle.add(animLayer);
-		obstacle.animate(animLayer, Red.SPEED, red.getObject());
-	}, 300);
+
+		if(totalPoints % 5 == 0){
+			var obstacle = new Obstacle(road);
+			obstacle.add(animLayer);
+			obstacle.animate(animLayer, Red.SPEED, red.getObject());
+		}
+
+		if(totalPoints % 100 == 0){
+			var whiteCar = new WhiteCar(road);
+			whiteCar.add(animLayer);
+			whiteCar.animate(animLayer, Red.SPEED, red.getObject());
+		}
+	}, 100);
 
 	$(document).on('crash', function(){
 		clearInterval(live);
